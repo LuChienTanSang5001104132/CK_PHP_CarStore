@@ -3,14 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Comment;
+// FIXED: Dùng Review model thay vì Comment (Comment model không tồn tại,
+//        bảng thực tế là 'reviews' theo migration)
+use App\Models\Review;
 use Illuminate\Http\Request;
 
 class AdminCommentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Comment::with(['user:id,name,email,avatar', 'car:id,name,brand']);
+        $query = Review::with([
+            'user:id,name,email,avatar',
+            'car:id,name,brand_id',
+            'car.brand:id,name',
+        ]);
 
         if ($request->filled('search')) {
             $query->where('content', 'like', "%{$request->search}%");
@@ -18,6 +24,11 @@ class AdminCommentController extends Controller
 
         if ($request->filled('car_id')) {
             $query->where('car_id', $request->car_id);
+        }
+
+        // FIXED: Thêm filter theo rating (tính năng hữu ích cho admin)
+        if ($request->filled('rating')) {
+            $query->where('rating', $request->rating);
         }
 
         $comments = $query->latest()->paginate($request->get('per_page', 20));
@@ -30,8 +41,9 @@ class AdminCommentController extends Controller
 
     public function destroy($id)
     {
-        $comment = Comment::findOrFail($id);
-        $comment->delete();
+        // FIXED: dùng Review::findOrFail thay vì Comment::findOrFail
+        $review = Review::findOrFail($id);
+        $review->delete();
 
         return response()->json([
             'success' => true,

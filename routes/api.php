@@ -3,8 +3,6 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// ... các route khác của bạn
-
 /*
 |--------------------------------------------------------------------------
 | ADMIN API ROUTES - Người 5 (Sang)
@@ -12,27 +10,31 @@ use Illuminate\Support\Facades\Route;
 */
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
 
-    // Dashboard & Báo cáo tổng quan
-    Route::get('/dashboard', [App\Http\Controllers\Admin\AdminController::class, 'dashboard']);
-    Route::get('/reports', [App\Http\Controllers\Admin\AdminController::class, 'reports']); // nếu bạn có method reports trong AdminController
+    // ── Dashboard & Báo cáo ───────────────────────────────────────────────
+    Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminController::class, 'dashboard']);
 
-    // Xuất báo cáo
-    Route::get('/reports/export/pdf', [App\Http\Controllers\Admin\AdminReportController::class, 'exportPdf']);
-    Route::get('/reports/export/excel', [App\Http\Controllers\Admin\AdminReportController::class, 'exportExcel']);
+    // FIXED: reports() method đã được thêm vào AdminController
+    Route::get('/reports', [\App\Http\Controllers\Admin\AdminController::class, 'reports']);
 
-    // Quản lý Người dùng
-    Route::apiResource('users', App\Http\Controllers\Admin\AdminUserController::class);
+    // Xuất file
+    Route::get('/reports/export/pdf',   [\App\Http\Controllers\Admin\AdminReportController::class, 'exportPdf']);
+    Route::get('/reports/export/excel', [\App\Http\Controllers\Admin\AdminReportController::class, 'exportExcel']);
 
-    // Quản lý Xe
-    Route::apiResource('cars', App\Http\Controllers\Admin\AdminCarController::class);
+    // ── Quản lý Người dùng ───────────────────────────────────────────────
+    Route::apiResource('users', \App\Http\Controllers\Admin\AdminUserController::class);
 
-    // Quản lý Đơn hàng
-    Route::get('/orders', [App\Http\Controllers\Admin\AdminOrderController::class, 'index']);
-    Route::get('/orders/{id}', [App\Http\Controllers\Admin\AdminOrderController::class, 'show']);
-    Route::put('/orders/{id}/status', [App\Http\Controllers\Admin\AdminOrderController::class, 'updateStatus']);
-    Route::delete('/orders/{id}', [App\Http\Controllers\Admin\AdminOrderController::class, 'destroy']);
+    // ── Quản lý Xe ───────────────────────────────────────────────────────
+    Route::apiResource('cars', \App\Http\Controllers\Admin\AdminCarController::class);
 
-    // Quản lý Bình luận
-    Route::get('/comments', [App\Http\Controllers\Admin\AdminCommentController::class, 'index']);
-    Route::delete('/comments/{id}', [App\Http\Controllers\Admin\AdminCommentController::class, 'destroy']);
+    // ── Quản lý Đơn hàng ─────────────────────────────────────────────────
+    Route::get   ('/orders',                  [\App\Http\Controllers\Admin\AdminOrderController::class, 'index']);
+    Route::get   ('/orders/{id}',             [\App\Http\Controllers\Admin\AdminOrderController::class, 'show']);
+    Route::put   ('/orders/{id}/status',      [\App\Http\Controllers\Admin\AdminOrderController::class, 'updateStatus']);
+    // FIXED: Thêm route cập nhật trạng thái thanh toán (method mới bổ sung)
+    Route::put   ('/orders/{id}/payment',     [\App\Http\Controllers\Admin\AdminOrderController::class, 'updatePaymentStatus']);
+    Route::delete('/orders/{id}',             [\App\Http\Controllers\Admin\AdminOrderController::class, 'destroy']);
+
+    // ── Quản lý Bình luận / Đánh giá ─────────────────────────────────────
+    Route::get   ('/comments',     [\App\Http\Controllers\Admin\AdminCommentController::class, 'index']);
+    Route::delete('/comments/{id}',[\App\Http\Controllers\Admin\AdminCommentController::class, 'destroy']);
 });

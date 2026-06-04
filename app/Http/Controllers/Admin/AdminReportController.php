@@ -20,7 +20,7 @@ class AdminReportController extends Controller
 
         $pdf = Pdf::loadView('admin.reports.pdf', $data)
                   ->setPaper('a4', 'landscape')
-                  ->setOptions(['defaultFont' => 'DejaVuSans']);
+                  ->setOptions(['defaultFont' => 'DejaVu Sans']);
 
         $filename = 'bao-cao-carstore-' . Carbon::now()->format('Y-m-d_His') . '.pdf';
 
@@ -29,7 +29,7 @@ class AdminReportController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $data = $this->getReportData($request);
+        $data     = $this->getReportData($request);
         $filename = 'bao-cao-carstore-' . Carbon::now()->format('Y-m-d_His') . '.xlsx';
 
         return Excel::download(new ReportExport($data), $filename);
@@ -37,40 +37,55 @@ class AdminReportController extends Controller
 
     private function getReportData(Request $request): array
     {
-        $year = $request->get('year', Carbon::now()->year);
+        $year  = $request->get('year', Carbon::now()->year);
         $month = $request->get('month');
 
-        $orderQuery = Order::where('status', 'completed');
+        // FIXED: dùng status 'delivered' và cột 'total_amount' đúng với migration
+        $orderQuery = Order::where('status', 'delivered')
+            ->whereYear('created_at', $year);
 
         if ($month) {
-            $orderQuery->whereYear('created_at', $year)->whereMonth('created_at', $month);
-        } else {
-            $orderQuery->whereYear('created_at', $year);
+            $orderQuery->whereMonth('created_at', $month);
         }
 
-        $revenueByMonth = Order::where('status', 'completed')
+        // FIXED: cột là 'total_amount', không phải 'total'
+        $revenueByMonth = Order::where('status', 'delivered')
             ->whereYear('created_at', $year)
             ->select(
                 DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(total) as revenue'),
+                DB::raw('SUM(total_amount) as revenue'),   // FIXED
                 DB::raw('COUNT(*) as orders')
             )
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
+        // Điền đủ 12 tháng
+        $fullMonths = collect(range(1, 12))->map(function ($m) use ($revenueByMonth) {
+            $found = $revenueByMonth->firstWhere('month', $m);
+            return (object)[
+                'month'   => $m,
+                'revenue' => $found ? $found->revenue : 0,
+                'orders'  => $found ? $found->orders  : 0,
+            ];
+        });
+
+        // FIXED: join với brands thay vì dùng cột 'brand' trực tiếp
         $topCars = DB::table('order_items')
             ->join('cars', 'order_items.car_id', '=', 'cars.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->where('orders.status', 'completed')
+            ->leftJoin('brands', 'cars.brand_id', '=', 'brands.id')
+            ->where('orders.status', 'delivered')
             ->whereYear('orders.created_at', $year)
             ->when($month, fn($q) => $q->whereMonth('orders.created_at', $month))
             ->select(
-                'cars.name', 'cars.brand', 'cars.price',
+                'cars.name',
+                'brands.name as brand',           // FIXED: từ bảng brands
+                'cars.price',
                 DB::raw('SUM(order_items.quantity) as total_sold'),
                 DB::raw('SUM(order_items.quantity * order_items.price) as total_revenue')
             )
-            ->groupBy('cars.name', 'cars.brand', 'cars.price')
+            ->groupBy('cars.name', 'brands.name', 'cars.price')
             ->orderByDesc('total_sold')
             ->limit(10)
             ->get();
@@ -79,10 +94,10 @@ class AdminReportController extends Controller
             'generated_at'    => Carbon::now()->format('d/m/Y H:i'),
             'year'            => $year,
             'month'           => $month,
-            'total_revenue'   => $orderQuery->sum('total'),
-            'total_orders'    => $orderQuery->count(),
+            'total_revenue'   => (clone $orderQuery)->sum('total_amount'),  // FIXED
+            'total_orders'    => (clone $orderQuery)->count(),
             'total_customers' => User::where('role', 'user')->count(),
-            'revenue_by_month'=> $revenueByMonth,
+            'revenue_by_month'=> $fullMonths,
             'top_cars'        => $topCars,
         ];
     }

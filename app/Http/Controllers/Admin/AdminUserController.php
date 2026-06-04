@@ -15,15 +15,19 @@ class AdminUserController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
         }
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
 
-        $users = $query->select('id', 'name', 'email', 'role', 'avatar', 'phone', 'created_at')
+        $users = $query->select('id', 'name', 'email', 'role', 'avatar', 'phone', 'address', 'created_at')
+                       ->withCount('orders')
                        ->latest()
                        ->paginate($request->get('per_page', 15));
 
@@ -35,8 +39,15 @@ class AdminUserController extends Controller
 
     public function show($id)
     {
-        $user = User::with(['orders' => fn($q) => $q->latest()->limit(5)])
-                    ->findOrFail($id);
+        $user = User::with([
+            'orders' => fn($q) => $q->latest()->limit(10),
+            'orders.items.car',
+        ])->findOrFail($id);
+
+        // Thống kê tổng chi tiêu
+        $user->total_spent = $user->orders()
+            ->where('status', 'delivered')
+            ->sum('total_amount');
 
         return response()->json([
             'success' => true,
@@ -49,18 +60,19 @@ class AdminUserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'name'  => 'sometimes|string|max:255',
-            'email' => ['sometimes', 'email', Rule::unique('users')->ignore($id)],
-            'role'  => 'sometimes|in:user,admin',
-            'phone' => 'sometimes|nullable|string|max:20',
+            'name'    => 'sometimes|string|max:255',
+            'email'   => ['sometimes', 'email', Rule::unique('users')->ignore($id)],
+            'role'    => 'sometimes|in:user,admin',
+            'phone'   => 'sometimes|nullable|string|max:20',
+            'address' => 'sometimes|nullable|string|max:500',
         ]);
 
-        $user->update($request->only(['name', 'email', 'role', 'phone']));
+        $user->update($request->only(['name', 'email', 'role', 'phone', 'address']));
 
         return response()->json([
             'success' => true,
             'message' => 'Cập nhật người dùng thành công',
-            'data'    => $user
+            'data'    => $user->fresh()
         ]);
     }
 
@@ -72,6 +84,13 @@ class AdminUserController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Không thể xóa tài khoản đang đăng nhập'
+            ], 403);
+        }
+
+        if ($user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa tài khoản admin'
             ], 403);
         }
 
