@@ -31,4 +31,11 @@ class Car extends Model
     {
         return $this->belongsTo(Brand::class); 
     }
+    /**
+ * Định nghĩa mối quan hệ: Một chiếc xe có thể nằm trong nhiều chi tiết đơn hàng
+ */
+    public function orderItems()
+    {
+        return $this->hasMany(\App\Models\OrderItem::class, 'car_id');
+    }
 }
