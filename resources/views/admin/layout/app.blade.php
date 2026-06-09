@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') - CarStore Admin</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- Icons (Heroicons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
     <style>
@@ -23,7 +20,6 @@
 <body class="bg-gray-100">
 
 <div class="flex h-screen">
-    <!-- Sidebar -->
     <div class="w-64 bg-gray-900 text-white sidebar overflow-y-auto">
         <div class="p-6 border-b border-gray-800">
             <h1 class="text-2xl font-bold flex items-center gap-2">
@@ -67,9 +63,7 @@
         </nav>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Top Header -->
         <header class="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="lg:hidden text-gray-600">
@@ -79,20 +73,13 @@
             </div>
             
             <div class="flex items-center gap-4">
-                <span class="text-sm text-gray-600">Xin chào, <strong>{{ auth()->user()->name }}</strong></span>
-                <a href="{{ route('logout') }}" 
-                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
-                   class="text-red-600 hover:text-red-700 flex items-center gap-1">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Đăng xuất
-                </a>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
-                    @csrf
-                </form>
+                <span class="text-sm text-gray-600">Xin chào, <strong id="userNameDisplay">Đang tải...</strong></span>
+                <button onclick="logoutAPI()" class="text-red-600 hover:text-red-700 flex items-center gap-1 font-semibold">
+                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                </button>
             </div>
         </header>
 
-        <!-- Page Content -->
         <main class="flex-1 overflow-auto p-6">
             @yield('content')
         </main>
@@ -100,9 +87,64 @@
 </div>
 
 <script>
-function toggleSidebar() {
-    document.querySelector('.sidebar').classList.toggle('-translate-x-full');
-}
+    // Ẩn/hiện Sidebar trên mobile
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('-translate-x-full');
+    }
+
+    // Tự động load tên User bằng Token API
+    async function loadUserProfile() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res = await fetch('/api/profile', {
+                headers: { 
+                    'Authorization': 'Bearer ' + token, 
+                    'Accept': 'application/json' 
+                }
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.status === 'success') { 
+                const userName = data.user ? data.user.name : 'Admin';
+                document.getElementById('userNameDisplay').innerText = userName;
+            } else {
+                document.getElementById('userNameDisplay').innerText = 'Người dùng';
+            }
+        } catch (error) {
+            console.error('Lỗi load profile:', error);
+            document.getElementById('userNameDisplay').innerText = 'Lỗi kết nối';
+        }
+    }
+    
+    loadUserProfile(); // Gọi ngay khi trang load xong
+
+    // Xử lý Đăng xuất
+    async function logoutAPI() {
+        const token = localStorage.getItem('token');
+        if (token) {
+            // Gọi API xóa token trên server
+            try {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Accept': 'application/json'
+                    }
+                });
+            } catch (e) {
+                console.error('Lỗi đăng xuất server:', e);
+            }
+        }
+        
+        // Xóa token ở LocalStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_role');
+        
+        // Đẩy về trang đăng nhập
+        window.location.href = "{{ route('login') }}";
+    }
 </script>
 
 @yield('scripts')

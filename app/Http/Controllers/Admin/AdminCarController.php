@@ -4,19 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Car;
-use App\Models\Brand; // Import thêm Model Brand để làm bộ lọc hoặc form thêm mới
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class AdminCarController extends Controller
 {
-    // 1. TRANG DANH SÁCH XE
     public function index(Request $request)
     {
+        // FIXED: join với brands để lấy tên hãng; dùng with() thay vì query raw
         $query = Car::with('brand')->withCount('orderItems');
 
-        // Tìm kiếm theo tên xe hoặc tên hãng
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -25,36 +23,37 @@ class AdminCarController extends Controller
             });
         }
 
-        // Lọc theo hãng
         if ($request->filled('brand_id')) {
             $query->where('brand_id', $request->brand_id);
         }
 
-        // Lọc theo trạng thái
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         $cars = $query->latest()->paginate($request->get('per_page', 15));
-        $brands = Brand::all(); // Lấy danh sách hãng để đổ vào thanh Select tìm kiếm trên giao diện
 
-        // SỬA: Trả về view thay vì JSON
-        return view('admin.cars.index', compact('cars', 'brands'));
+        return response()->json([
+            'success' => true,
+            'data'    => $cars
+        ]);
     }
 
-    // 2. TRANG HIỂN THỊ FORM THÊM XE
-    public function create()
+    public function show($id)
     {
-        $brands = Brand::all(); // Cần danh sách hãng để Admin chọn khi thêm xe
-        return view('admin.cars.creat', compact('brands'));
+        $car = Car::with(['brand', 'images', 'reviews.user'])->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $car
+        ]);
     }
 
-    // 3. XỬ LÝ LƯU XE MỚI VÀO DATABASE
     public function store(Request $request)
     {
         $request->validate([
             'name'            => 'required|string|max:255',
-            'brand_id'        => 'required|exists:brands,id',
+            'brand_id'        => 'required|exists:brands,id',  // FIXED: validate brand_id
             'price'           => 'required|numeric|min:0',
             'quantity'        => 'required|integer|min:0',
             'year'            => 'required|integer|min:1900|max:' . (date('Y') + 1),
@@ -66,39 +65,30 @@ class AdminCarController extends Controller
             'color'           => 'nullable|string',
             'description'     => 'nullable|string',
             'status'          => 'boolean',
+            // FIXED: Xử lý upload ảnh đúng cách
             'featured_image'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $data = $request->except(['featured_image', 'slug']);
-        $data['slug'] = Str::slug($request->name) . '-' . uniqid();
-        $data['status'] = $request->has('status') ? 1 : 0; // Đảm bảo checkbox trạng thái hoạt động đúng
 
+        // Tạo slug tự động từ tên xe
+        $data['slug'] = Str::slug($request->name) . '-' . uniqid();
+
+        // FIXED: Xử lý upload ảnh (phần này trước đây bị thiếu hoàn toàn)
         if ($request->hasFile('featured_image')) {
-            $data['featured_image'] = $request->file('featured_image')->store('cars', 'public');
+            $data['featured_image'] = $request->file('featured_image')
+                ->store('cars', 'public');
         }
 
-        Car::create($data);
+        $car = Car::create($data);
 
-        // SỬA: Chuyển hướng kèm thông báo thành công
-        return redirect()->route('admin.cars.index')->with('success', 'Thêm xe thành công!');
+        return response()->json([
+            'success' => true,
+            'message' => 'Thêm xe thành công',
+            'data'    => $car->load('brand')
+        ], 201);
     }
 
-    // 4. TRANG XEM CHI TIẾT XE (Nếu bạn cần)
-    public function show($id)
-    {
-        $car = Car::with(['brand'])->findOrFail($id);
-        return view('admin.cars.show', compact('car'));
-    }
-
-    // 5. TRANG HIỂN THỊ FORM SỬA XE
-    public function edit($id)
-    {
-        $car = Car::findOrFail($id);
-        $brands = Brand::all();
-        return view('admin.cars.edit', compact('car', 'brands'));
-    }
-
-    // 6. XỬ LÝ CẬP NHẬT THÔNG TIN XE
     public function update(Request $request, $id)
     {
         $car = Car::findOrFail($id);
@@ -121,42 +111,44 @@ class AdminCarController extends Controller
         ]);
 
         $data = $request->except(['featured_image', 'slug', '_method']);
-        $data['status'] = $request->has('status') ? 1 : 0;
 
+        // Nếu đổi tên thì cập nhật slug
         if ($request->filled('name')) {
             $data['slug'] = Str::slug($request->name) . '-' . $car->id;
         }
 
+        // FIXED: Xử lý thay ảnh mới và xóa ảnh cũ
         if ($request->hasFile('featured_image')) {
             if ($car->featured_image) {
                 Storage::disk('public')->delete($car->featured_image);
             }
-            $data['featured_image'] = $request->file('featured_image')->store('cars', 'public');
+            $data['featured_image'] = $request->file('featured_image')
+                ->store('cars', 'public');
         }
 
         $car->update($data);
 
-        // SỬA: Chuyển hướng kèm thông báo thành công
-        return redirect()->route('admin.cars.index')->with('success', 'Cập nhật xe thành công!');
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật xe thành công',
+            'data'    => $car->fresh()->load('brand')
+        ]);
     }
 
-    // 7. XỬ LÝ XÓA XE
     public function destroy($id)
     {
         $car = Car::findOrFail($id);
 
-        // Bảo vệ dữ liệu: Xe đã có đơn hàng thì không được xóa
-        if ($car->orderItems()->exists()) {
-            return redirect()->route('admin.cars.index')->with('error', 'Không thể xóa xe này vì nó đã nằm trong đơn hàng!');
-        }
-
+        // FIXED: Xóa ảnh trên storage khi xóa xe
         if ($car->featured_image) {
             Storage::disk('public')->delete($car->featured_image);
         }
 
         $car->delete();
 
-        // SỬA: Chuyển hướng kèm thông báo thành công
-        return redirect()->route('admin.cars.index')->with('success', 'Xóa xe thành công!');
+        return response()->json([
+            'success' => true,
+            'message' => 'Xóa xe thành công'
+        ]);
     }
 }

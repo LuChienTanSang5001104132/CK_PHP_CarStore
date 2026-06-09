@@ -17,8 +17,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'full_name',   // Thêm: tên đầy đủ từ migration alter_users_table
         'phone',
         'address',
+        'birth',       // Thêm: ngày sinh từ migration alter_users_table
         'avatar',
     ];
 
@@ -32,6 +34,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
+            'birth'             => 'date',   // Thêm: cast kiểu date cho trường birth
         ];
     }
 
@@ -41,14 +44,24 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class); // Thêm: quan hệ với giỏ hàng
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class);
     }
 
-    // Helper
+    // Helpers
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isUser(): bool
+    {
+        return $this->role === 'user';
     }
 }
