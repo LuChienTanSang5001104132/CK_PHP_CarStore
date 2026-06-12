@@ -3,12 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Brand;
+use Illuminate\Support\Str;
 
 class Car extends Model
 {
-   protected $fillable = [
+    protected $fillable = [
         'brand_id',
         'name',
         'slug',
@@ -25,18 +24,53 @@ class Car extends Model
         'description',
         'featured_image',
         'status',
-        'views'
+        'views',
     ];
-   public function brand(): BelongsTo
+
+    protected $casts = [
+        'price'    => 'decimal:2',
+        'status'   => 'boolean',
+        'quantity' => 'integer',
+        'year'     => 'integer',
+        'views'    => 'integer',
+        'seats'    => 'integer',
+        'mileage'  => 'integer',
+    ];
+
+    // Tự động tạo slug nếu chưa có
+    protected static function boot()
     {
-        return $this->belongsTo(Brand::class); 
+        parent::boot();
+        static::creating(function ($car) {
+            if (empty($car->slug)) {
+                $car->slug = Str::slug($car->name) . '-' . uniqid();
+            }
+        });
     }
-    /**
- * Định nghĩa mối quan hệ: Một chiếc xe có thể nằm trong nhiều chi tiết đơn hàng
- */
+
+    // Relationships
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(CarImage::class);
+    }
+
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class); // Thêm: quan hệ với giỏ hàng
+    }
+
     public function orderItems()
     {
-        return $this->hasMany(\App\Models\OrderItem::class, 'car_id');
+        return $this->hasMany(OrderItem::class);
     }
-    
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
 }

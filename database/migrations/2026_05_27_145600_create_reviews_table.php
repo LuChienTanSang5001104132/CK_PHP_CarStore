@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('car_id')->constrained()->onDelete('cascade');
+            $table->integer('rating'); // 1-5 sao
+            $table->text('content');   // Nội dung đánh giá
             $table->timestamps();
         });
     }

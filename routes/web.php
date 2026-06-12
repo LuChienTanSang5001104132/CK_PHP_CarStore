@@ -1,89 +1,34 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| WEB ROUTES - CHỈ TRẢ VỀ GIAO DIỆN (VIEWS)
 |--------------------------------------------------------------------------
 */
 
-// Trang chủ
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+// ── Trang chủ
+Route::get('/', function () { return view('welcome'); })->name('home');
 
+// ── Giao diện Auth (Đăng nhập, Đăng ký, Quên mật khẩu)
+Route::get('/login', function () { return view('auth.login'); })->name('login');
+Route::get('/register', function () { return view('auth.register'); })->name('register');
+Route::get('/forgot-password', function () { return view('auth.forgot-password'); })->name('password.forgot');
 
-// ==================== AUTH ROUTES ====================
-// Hiển thị form đăng nhập (gọi tới file resources/views/auth/login.blade.php)
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
+// ── Giao diện Người dùng
+Route::get('/cart', function () { return view('cart'); })->name('cart');
+Route::get('/checkout', function () { return view('checkout'); })->name('checkout');
+Route::get('/profile', function () { return view('profile'); })->name('profile');
 
-// Xử lý logic khi bấm nút Đăng nhập
-Route::post('/login', function (Request $request) {
-    // 1. Kiểm tra dữ liệu nhập vào
-    $credentials = $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required'],
-    ]);
-
-    // 2. Thực hiện đăng nhập
-    if (auth()->attempt($credentials, $request->filled('remember'))) {
-        $request->session()->regenerate();
-
-        // Nếu là admin thì đẩy thẳng vào dashboard admin
-        if (auth()->user()->role === 'admin') {
-            return redirect()->intended('/admin/dashboard');
-        }
-        
-        // Nếu là user thường thì về trang chủ
-        return redirect('/');
-    }
-
-    // 3. Đăng nhập thất bại (sai pass/email) thì quay lại form và báo lỗi
-    return back()->withErrors([
-        'email' => 'Thông tin đăng nhập không chính xác.',
-    ])->onlyInput('email');
+// ── Giao diện Admin (Khai báo đủ các tên route để thanh menu không bị lỗi)
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', function () { return view('admin.dashboard'); })->name('dashboard');
+    
+    // Các route này sẽ gọi đến các file view trong thư mục resources/views/admin/...
+    Route::get('/cars', function () { return view('admin.cars.index'); })->name('cars.index');
+    Route::get('/users', function () { return view('admin.users.index'); })->name('users.index');
+    Route::get('/orders', function () { return view('admin.orders.index'); })->name('orders.index');
+    Route::get('/comments', function () { return view('admin.comments.index'); })->name('comments.index');
+    Route::get('/reports', function () { return view('admin.reports.index'); })->name('reports');
 });
-
-
-// ==================== ADMIN ROUTES ====================
-Route::prefix('admin')
-    ->middleware(['auth', 'admin'])
-    ->name('admin.')
-    ->group(function () {
-
-        // Dashboard
-        Route::get('/dashboard', function () {
-            return view('admin.dashboard');
-        })->name('dashboard');
-
-        // Quản lý Xe
-        Route::resource('cars', \App\Http\Controllers\Admin\AdminCarController::class);
-
-        // Quản lý Người dùng
-        Route::resource('users', \App\Http\Controllers\Admin\AdminUserController::class);
-
-        // Quản lý Đơn hàng
-        Route::get('/orders', [\App\Http\Controllers\Admin\AdminOrderController::class, 'index'])
-             ->name('orders.index');
-        Route::get('/orders/{id}', [\App\Http\Controllers\Admin\AdminOrderController::class, 'show'])
-             ->name('orders.show');
-
-        // Quản lý Bình luận
-        Route::get('/comments', [\App\Http\Controllers\Admin\AdminCommentController::class, 'index'])
-             ->name('comments.index');
-
-        // Báo cáo
-        Route::get('/reports', function () {
-            return view('admin.reports.index'); // sẽ tạo sau
-        })->name('reports');
-    });
-
-// Đăng xuất (dùng chung)
-Route::post('/logout', function () {
-    auth()->logout();
-    return redirect()->route('login');
-})->name('logout');

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('color')->nullable();
             $table->string('type'); 
             $table->integer('quantity')->default(1);
-            $table->integer('mileage')-> nullable();
+            $table->integer('mileage')->nullable();
             $table->string('fuel_type')->nullable();
             $table->string('transmission')->nullable();
             $table->string('engine_capacity')->nullable();

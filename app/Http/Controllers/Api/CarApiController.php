@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Car;
 use Illuminate\Http\Request;
 
 class CarApiController extends Controller
@@ -13,7 +12,7 @@ class CarApiController extends Controller
      */
     public function index()
     {
-        return response()->json(Car::all());
+        //
     }
 
     /**
@@ -21,8 +20,7 @@ class CarApiController extends Controller
      */
     public function store(Request $request)
     {
-        $car = Car::create($request->all());
-        return response()->json($car);
+        //
     }
 
     /**
@@ -30,8 +28,7 @@ class CarApiController extends Controller
      */
     public function show(string $id)
     {
-        $car = Car::findOrFail($id);
-        return response()->json($car);
+        //
     }
 
     /**
@@ -39,10 +36,7 @@ class CarApiController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $car = Car::findOrFail($id);
-        $car->update($request->all());
-
-        return response()->json($car);
+        //
     }
 
     /**
@@ -50,7 +44,6 @@ class CarApiController extends Controller
      */
     public function destroy(string $id)
     {
-         Car::destroy($id);
-        return response()->json(['message' => 'Deleted']);
+        //
     }
 }
