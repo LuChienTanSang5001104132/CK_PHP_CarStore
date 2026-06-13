@@ -1,14 +1,18 @@
 @extends('layout.app')
 @section('title', 'Chi Tiết Xe')
+
 @section('header')
 <div class="phan_dau">
     <a href="{{ url('/home') }}" class="nut_menu">Trang Chủ</a>
 </div>
 @endsection
+
 @section('sidebar')
 @endsection
+
 @section('footer')
 @endsection
+
 @section('content')
 <style>
     .khung_chi_tiet { max-width: 1200px; margin: 40px auto; padding: 30px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; gap: 50px; flex-wrap: wrap; }
@@ -27,6 +31,7 @@
     .nut_mua_ngay { background-color: #28a745; color: #ffffff; text-align: center; padding: 18px; font-size: 18px; font-weight: bold; border-radius: 6px; text-decoration: none; transition: background-color 0.2s; border: none; cursor: pointer; text-transform: uppercase; }
     .nut_mua_ngay:hover { background-color: #218838; }
 </style>
+
 <div class="khung_chi_tiet">
     <div class="cot_hinh_anh">
         <img class="hinh_xe_chi_tiet" src="{{ asset('Image/' . $xe->featured_image) }}" alt="{{ $xe->name }}">
@@ -48,7 +53,47 @@
         </table>
         <div class="tieu_de_bang">Mô Tả Chung</div>
         <div class="mo_ta_xe">{{ $xe->description ?? 'Hiện tại chưa có mô tả chi tiết cho dòng xe này. Vui lòng liên hệ trực tiếp để biết thêm thông tin.' }}</div>
-        <button class="nut_mua_ngay">Thêm vào giỏ hàng</button>
+        
+        <button class="nut_mua_ngay" onclick="themVaoGioHang('{{ $xe->id }}')">Thêm vào giỏ hàng</button>
     </div>
 </div>
+
+<script>
+    // Hàm xử lý gọi API thêm vào giỏ hàng với Token
+    async function themVaoGioHang(carId) {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            alert('Bạn cần đăng nhập để thêm xe vào giỏ hàng!');
+            window.location.href = '/login';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    car_id: carId,
+                    quantity: 1
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.status === 201 || res.status === 200) {
+                alert('Đã thêm xe vào giỏ hàng thành công!');
+            } else {
+                alert('Lỗi: ' + (data.message || 'Không thể thêm vào giỏ hàng.'));
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Lỗi kết nối mạng, vui lòng thử lại!');
+        }
+    }
+</script>
 @endsection

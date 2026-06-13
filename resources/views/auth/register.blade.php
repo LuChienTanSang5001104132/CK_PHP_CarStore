@@ -19,28 +19,20 @@
         </div>
         <div class="card-body p-4">
             
-            {{-- Hiển thị lỗi validation --}}
-            @if($errors->any())
-                <div class="alert alert-danger py-2">
-                    <ul class="mb-0 ps-3">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+            {{-- Khu vực hiển thị lỗi từ API --}}
+            <div id="errorAlert" class="alert alert-danger py-2 d-none">
+                <ul class="mb-0 ps-3" id="errorList"></ul>
+            </div>
 
-            <form action="{{ route('register') }}" method="POST">
-                @csrf
-                
+            <form id="registerForm">
                 <div class="mb-3">
                     <label for="name" class="form-label">Họ và tên</label>
-                    <input type="text" name="name" id="name" class="form-control" value="{{ old('name') }}" required placeholder="Nhập họ tên của bạn...">
+                    <input type="text" name="name" id="name" class="form-control" required placeholder="Nhập họ tên của bạn...">
                 </div>
 
                 <div class="mb-3">
                     <label for="email" class="form-label">Email</label>
-                    <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" required placeholder="Nhập email...">
+                    <input type="email" name="email" id="email" class="form-control" required placeholder="Nhập email...">
                 </div>
 
                 <div class="mb-3">
@@ -53,7 +45,7 @@
                     <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required placeholder="••••••••">
                 </div>
 
-                <button type="submit" class="btn btn-success w-100 py-2 mt-2">Đăng ký ngay</button>
+                <button type="submit" id="submitBtn" class="btn btn-success w-100 py-2 mt-2">Đăng ký ngay</button>
             </form>
 
             <div class="mt-4 text-center border-top pt-3">
@@ -66,26 +58,64 @@
 </div>
 
 <script>
-    document.querySelector('form').addEventListener('submit', async (e) => {
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault(); // Ngăn form load lại trang
         
+        const submitBtn = document.getElementById('submitBtn');
+        const errorAlert = document.getElementById('errorAlert');
+        const errorList = document.getElementById('errorList');
+        
+        // Reset trạng thái lỗi
+        errorAlert.classList.add('d-none');
+        errorList.innerHTML = '';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang xử lý...';
+
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
 
-        const res = await fetch('/api/register', { // Đảm bảo route api.php đã trỏ vào method này
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        try {
+            const res = await fetch('/api/register', { 
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
 
-        const result = await res.json();
+            const result = await res.json();
 
-        if (result.status === 'success') {
-            alert(result.message);
-            window.location.href = "{{ route('login') }}"; // Chuyển sang trang login
-        } else {
-            // Hiển thị lỗi từ server
-            alert(result.message + "\n" + JSON.stringify(result.errors));
+            if (res.ok && result.status === 'success') {
+                alert(result.message);
+                window.location.href = "{{ route('login') }}"; // Chuyển sang trang login
+            } else {
+                errorAlert.classList.remove('d-none');
+                
+                // Parse mảng lỗi từ validation của Laravel
+                if (result.errors) {
+                    for (const key in result.errors) {
+                        result.errors[key].forEach(err => {
+                            const li = document.createElement('li');
+                            li.textContent = err;
+                            errorList.appendChild(li);
+                        });
+                    }
+                } else {
+                    const li = document.createElement('li');
+                    li.textContent = result.message || 'Đăng ký thất bại!';
+                    errorList.appendChild(li);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            errorAlert.classList.remove('d-none');
+            const li = document.createElement('li');
+            li.textContent = 'Lỗi kết nối đến máy chủ!';
+            errorList.appendChild(li);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Đăng ký ngay';
         }
     });
 </script>
