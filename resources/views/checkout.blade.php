@@ -1,30 +1,8 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thanh Toán - CarStore</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-</head>
-<body class="bg-gray-50 text-gray-800">
+@extends('layouts.app')
 
-    <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-            <a href="/" class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-                <i class="fas fa-car"></i> CARSTORE
-            </a>
-            <div class="flex items-center gap-6">
-                <a href="/" class="hover:text-blue-600 font-medium">Trang chủ</a>
-                <a href="/cart" class="hover:text-blue-600 font-medium">Giỏ hàng</a>
-                <a href="/profile" class="hover:text-blue-600 font-medium">Tài khoản</a>
-                <button onclick="logout()" class="text-red-500 hover:text-red-600 font-medium">
-                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
-                </button>
-            </div>
-        </div>
-    </nav>
+@section('title', 'Thanh Toán - CarStore')
 
+@section('content')
     <div class="max-w-2xl mx-auto p-8 mt-10 bg-white rounded-2xl shadow-sm border border-gray-100">
         <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-4 flex items-center gap-2">
             <i class="fas fa-map-marker-alt text-blue-600"></i> Thông Tin Giao Hàng
@@ -66,111 +44,105 @@
             </button>
         </div>
     </div>
+@endsection
 
-    <script>
-        // 1. Kiểm tra đăng nhập
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('Bạn cần đăng nhập để truy cập trang này!');
-            window.location.href = "{{ route('login') }}";
-        }
+@section('scripts')
+<script>
+    // 1. Kiểm tra đăng nhập
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('Bạn cần đăng nhập để truy cập trang này!');
+        window.location.href = "{{ route('login') }}";
+    }
 
-        let currentOrderId = null;
+    let currentOrderId = null;
 
-        // 2. Tự động điền thông tin Profile nếu có (Optional - Giúp người dùng lười gõ)
-        async function prefillData() {
-            try {
-                const res = await fetch('/api/profile', {
-                    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
-                });
-                const result = await res.json();
-                if(result.status === 'success') {
-                    const user = result.user || result.data;
-                    if(user.full_name) document.getElementById('full_name').value = user.full_name;
-                    if(user.phone) document.getElementById('phone').value = user.phone;
-                    if(user.address) document.getElementById('address').value = user.address;
-                }
-            } catch (error) {}
-        }
-        prefillData();
+    // 2. Tự động điền thông tin Profile nếu có (Optional - Giúp người dùng lười gõ)
+    async function prefillData() {
+        try {
+            const res = await fetch('/api/profile', {
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+            });
+            const result = await res.json();
+            if(result.status === 'success') {
+                const user = result.user || result.data;
+                if(user.full_name) document.getElementById('full_name').value = user.full_name;
+                if(user.phone) document.getElementById('phone').value = user.phone;
+                if(user.address) document.getElementById('address').value = user.address;
+            }
+        } catch (error) {}
+    }
+    prefillData();
 
-        // 3. Xử lý đặt hàng
-        document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    // 3. Xử lý đặt hàng
+    document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
 
-            try {
-                const res = await fetch('/api/orders', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        customer_full_name: document.getElementById('full_name').value,
-                        customer_phone: document.getElementById('phone').value,
-                        customer_address: document.getElementById('address').value,
-                        payment_method: 'vietqr'
-                    })
-                });
+        try {
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    customer_full_name: document.getElementById('full_name').value,
+                    customer_phone: document.getElementById('phone').value,
+                    customer_address: document.getElementById('address').value,
+                    payment_method: 'vietqr'
+                })
+            });
 
-                const result = await res.json();
+            const result = await res.json();
+            
+            if(res.ok && result.status === 'success') {
+                currentOrderId = result.data.id;
+                const total = result.data.total_amount;
                 
-                if(res.ok && result.status === 'success') {
-                    currentOrderId = result.data.id;
-                    const total = result.data.total_amount;
-                    
-                    // Hiện QR Code
-                    document.getElementById('order-id-display').textContent = '#' + currentOrderId;
-                    const qrUrl = `https://img.vietqr.io/image/MB-0366907515-compact.png?amount=${total}&addInfo=DonHang${currentOrderId}&accountName=CHITAI`;
-                    document.getElementById('qr-code').src = qrUrl;
-                    
-                    document.getElementById('payment-box').classList.remove('hidden');
-                    document.getElementById('checkoutForm').classList.add('hidden');
-                } else {
-                    alert(result.message || 'Có lỗi xảy ra khi tạo đơn hàng!');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Xác nhận đặt hàng';
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Không thể kết nối đến máy chủ.');
+                // Hiện QR Code
+                document.getElementById('order-id-display').textContent = '#' + currentOrderId;
+                const qrUrl = `https://img.vietqr.io/image/MB-0366907515-compact.png?amount=${total}&addInfo=DonHang${currentOrderId}&accountName=CHITAI`;
+                document.getElementById('qr-code').src = qrUrl;
+                
+                document.getElementById('payment-box').classList.remove('hidden');
+                document.getElementById('checkoutForm').classList.add('hidden');
+            } else {
+                alert(result.message || 'Có lỗi xảy ra khi tạo đơn hàng!');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Xác nhận đặt hàng';
             }
-        });
+        } catch (err) {
+            console.error(err);
+            alert('Không thể kết nối đến máy chủ.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Xác nhận đặt hàng';
+        }
+    });
 
-        // 4. Xử lý xác nhận thanh toán (Gọi API confirmPayment)
-        async function confirmPayment() {
-            try {
-                const res = await fetch(`/api/orders/${currentOrderId}/confirm-payment`, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + token,
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if(res.ok) {
-                    alert('Đặt hàng và thanh toán thành công! Cảm ơn bạn đã mua sắm.');
-                    window.location.href = '/'; // Quay về trang chủ
-                } else {
-                    alert('Có lỗi xảy ra khi xác nhận, vui lòng thử lại.');
+    // 4. Xử lý xác nhận thanh toán (Gọi API confirmPayment)
+    async function confirmPayment() {
+        try {
+            const res = await fetch(`/api/orders/${currentOrderId}/confirm-payment`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
                 }
-            } catch (err) {
-                alert('Lỗi kết nối máy chủ!');
+            });
+            
+            if(res.ok) {
+                alert('Đặt hàng và thanh toán thành công! Cảm ơn bạn đã mua sắm.');
+                window.location.href = '/'; // Quay về trang chủ
+            } else {
+                alert('Có lỗi xảy ra khi xác nhận, vui lòng thử lại.');
             }
+        } catch (err) {
+            alert('Lỗi kết nối máy chủ!');
         }
-
-        // 5. Hàm đăng xuất cho Navbar
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user_role');
-            window.location.href = "{{ route('login') }}";
-        }
-    </script>
-</body>
-</html>
+    }
+</script>
+@endsection

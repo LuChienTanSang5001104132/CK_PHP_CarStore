@@ -1,9 +1,0 @@
-[33mcommit 9b42d93a602d22c9699930d86269c8f341add56e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
-Merge: 9fa3907 723de9f
-Author: ChiTaiVN <dangyenchitai7@gmail.com>
-Date:   Fri Jun 12 23:28:46 2026 +0700
-
-    Merge pull request #3 from LuChienTanSang5001104132/feature-tai-auth
-    
-    Hoàn thiện luồng xác thực API và một số giao diện khách hàng
-
