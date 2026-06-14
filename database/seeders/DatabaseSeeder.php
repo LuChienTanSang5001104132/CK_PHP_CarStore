@@ -4,22 +4,24 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash; // Bắt buộc phải import cái này để mã hóa mật khẩu
+use Illuminate\Support\Facades\Hash; 
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // Tạo tài khoản Admin
+        // 1. Tạo tài khoản Admin ngay tại đây (hoặc bạn có thể tạo UserSeeder riêng cũng được)
         User::create([
             'name'     => 'Admin',
             'email'    => 'admin@gmail.com',
-            'password' => Hash::make('admin123456789'), // Mã hóa mật khẩu
-            'role'     => 'admin', // Cấp quyền admin để qua được middleware
+            'password' => Hash::make('admin123456789'), 
+            'role'     => 'admin', 
         ]);
 
+        // 2. Gọi các file Seeder riêng biệt chạy
+        $this->call([
+            BrandSeeder::class,
+            // Sau này bạn có thêm xe thì sẽ gọi CarSeeder::class ở đây...
+        ]);
     }
 }

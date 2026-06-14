@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-// FIXED: Dùng Review model thay vì Comment (Comment model không tồn tại,
-//        bảng thực tế là 'reviews' theo migration)
 use App\Models\Review;
 use Illuminate\Http\Request;
 
@@ -26,28 +24,42 @@ class AdminCommentController extends Controller
             $query->where('car_id', $request->car_id);
         }
 
-        // FIXED: Thêm filter theo rating (tính năng hữu ích cho admin)
         if ($request->filled('rating')) {
             $query->where('rating', $request->rating);
         }
 
         $comments = $query->latest()->paginate($request->get('per_page', 20));
+        
+        // Truyền thêm biến $reviews để file Blade ở bước trước hoạt động đúng
+        $reviews = $comments; 
 
-        return response()->json([
-            'success' => true,
-            'data'    => $comments
-        ]);
+        // Nếu gọi từ API
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $comments
+            ]);
+        }
+
+        // Nếu gọi từ Giao diện Web
+        return view('admin.comments.index', compact('comments', 'reviews'));
     }
 
-    public function destroy($id)
+    // LƯU Ý: Đã thêm Request $request vào hàm destroy để kiểm tra luồng API
+    public function destroy(Request $request, $id) 
     {
-        // FIXED: dùng Review::findOrFail thay vì Comment::findOrFail
         $review = Review::findOrFail($id);
         $review->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Xóa bình luận thành công'
-        ]);
+        // Nếu gọi từ API
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Xóa bình luận thành công'
+            ]);
+        }
+
+        // Nếu gọi từ Giao diện Web
+        return redirect()->route('admin.comments.index')->with('success', 'Đã xóa bình luận thành công!');
     }
 }

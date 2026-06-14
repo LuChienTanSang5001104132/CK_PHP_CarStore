@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,49 +12,63 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    /**
+     * Các trường cho phép thêm/sửa dữ liệu hàng loạt (Mass Assignment)
+     */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role',
-        'full_name',   // Thêm: tên đầy đủ từ migration alter_users_table
-        'phone',
-        'address',
-        'birth',       // Thêm: ngày sinh từ migration alter_users_table
-        'avatar',
+        'role',         // Phân quyền (admin/user)
+        'full_name',    // Tên đầy đủ
+        'phone',        // Số điện thoại
+        'address',      // Địa chỉ
+        'birth',        // Ngày sinh
+        'avatar',       // Ảnh đại diện
     ];
 
+    /**
+     * Các trường cần được ẩn đi khi trả về JSON (bảo mật)
+     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
+    /**
+     * Ép kiểu dữ liệu (Casts)
+     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
-            'birth'             => 'date',   // Thêm: cast kiểu date cho trường birth
+            'birth'             => 'date', // Ép kiểu cột birth thành ngày tháng
         ];
     }
 
-    // Relationships
+    // ── CÁC MỐI QUAN HỆ (RELATIONSHIPS) CỦA ĐỒ ÁN ──
+
+    // Một người dùng có nhiều Đơn hàng
     public function orders()
     {
         return $this->hasMany(Order::class);
     }
 
+    // Một người dùng có nhiều Sản phẩm trong giỏ hàng
     public function cartItems()
     {
-        return $this->hasMany(CartItem::class); // Thêm: quan hệ với giỏ hàng
+        return $this->hasMany(CartItem::class);
     }
 
+    // Một người dùng có nhiều Lượt đánh giá xe
     public function reviews()
     {
         return $this->hasMany(Review::class);
     }
 
-    // Helpers
+    // ── CÁC HÀM HỖ TRỢ KIỂM TRA QUYỀN (HELPERS) ──
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

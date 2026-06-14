@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 
 class AdminOrderController extends Controller
 {
+    // ── 1. LẤY DANH SÁCH ĐƠN HÀNG ──
     public function index(Request $request)
     {
-        // FIXED: dùng 'customer_full_name' và 'customer_phone' đúng với migration
         $query = Order::with([
             'user:id,name,email,phone',
             'items.car:id,name,brand_id,featured_image',
@@ -37,39 +37,39 @@ class AdminOrderController extends Controller
             });
         }
 
-        if ($request->filled('from_date')) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-        if ($request->filled('to_date')) {
-            $query->whereDate('created_at', '<=', $request->to_date);
+        $orders = $query->latest()->paginate($request->get('per_page', 10));
+
+        // Nếu gọi từ API (Thầy chấm điểm)
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $orders
+            ]);
         }
 
-        $orders = $query->latest()->paginate($request->get('per_page', 15));
-
-        return response()->json([
-            'success' => true,
-            'data'    => $orders
-        ]);
+        // Nếu gọi từ Giao diện Web (Blade)
+        return view('admin.orders.index', compact('orders'));
     }
 
-    public function show($id)
+    // ── 2. XEM CHI TIẾT 1 ĐƠN HÀNG ──
+    public function show(Request $request, $id)
     {
-        $order = Order::with([
-            'user',
-            'items.car.brand',
-        ])->findOrFail($id);
+        $order = Order::with(['user', 'items.car.brand'])->findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $order
-        ]);
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $order
+            ]);
+        }
+
+        return view('admin.orders.show', compact('order'));
     }
 
+    // ── 3. CẬP NHẬT TRẠNG THÁI GIAO HÀNG ──
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            // FIXED: status values phải khớp với migration
-            // Migration dùng: pending, confirmed, shipping, delivered, cancelled
             'status' => 'required|in:pending,confirmed,shipping,delivered,cancelled',
         ]);
 
@@ -77,18 +77,23 @@ class AdminOrderController extends Controller
         $oldStatus = $order->status;
         $order->update(['status' => $request->status]);
 
-        // Cập nhật payment_status tự động khi delivered
+        // Tự động cập nhật thanh toán nếu đã giao hàng thành công (trừ COD)
         if ($request->status === 'delivered' && $order->payment_method !== 'cod') {
             $order->update(['payment_status' => 'paid']);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Đơn hàng #{$id} đã chuyển từ '{$oldStatus}' → '{$request->status}'",
-            'data'    => $order->fresh()
-        ]);
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Đơn hàng #{$id} đã chuyển từ '{$oldStatus}' → '{$request->status}'",
+                'data'    => $order->fresh()
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Cập nhật trạng thái đơn hàng thành công!');
     }
 
+    // ── 4. CẬP NHẬT TRẠNG THÁI THANH TOÁN ──
     public function updatePaymentStatus(Request $request, $id)
     {
         $request->validate([
@@ -98,31 +103,42 @@ class AdminOrderController extends Controller
         $order = Order::findOrFail($id);
         $order->update(['payment_status' => $request->payment_status]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cập nhật trạng thái thanh toán thành công',
-            'data'    => $order->fresh()
-        ]);
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật trạng thái thanh toán thành công',
+                'data'    => $order->fresh()
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Cập nhật trạng thái thanh toán thành công!');
     }
 
-    public function destroy($id)
+    // ── 5. XÓA ĐƠN HÀNG ──
+    public function destroy(Request $request, $id)
     {
         $order = Order::findOrFail($id);
 
-        // Chỉ cho phép xóa đơn đã hủy hoặc đang pending
         if (!in_array($order->status, ['cancelled', 'pending'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Chỉ có thể xóa đơn hàng đang chờ xử lý hoặc đã hủy'
-            ], 422);
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ có thể xóa đơn hàng đang chờ xử lý hoặc đã hủy'
+                ], 422);
+            }
+            return redirect()->back()->with('error', 'Chỉ có thể xóa đơn hàng đang chờ xử lý hoặc đã hủy!');
         }
 
         $order->items()->delete();
         $order->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Xóa đơn hàng thành công'
-        ]);
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Xóa đơn hàng thành công'
+            ]);
+        }
+
+        return redirect()->route('admin.orders.index')->with('success', 'Xóa đơn hàng thành công!');
     }
 }

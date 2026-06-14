@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Hash;
 
 class AdminUserController extends Controller
 {
+    // ── 1. LẤY DANH SÁCH NGƯỜI DÙNG ──
     public function index(Request $request)
     {
         $query = User::query();
@@ -26,79 +28,132 @@ class AdminUserController extends Controller
             $query->where('role', $request->role);
         }
 
-        $users = $query->select('id', 'name', 'email', 'role', 'avatar', 'phone', 'address', 'created_at')
-                       ->withCount('orders')
-                       ->latest()
-                       ->paginate($request->get('per_page', 15));
+        $users = $query->latest()->paginate($request->get('per_page', 15));
 
-        return response()->json([
-            'success' => true,
-            'data'    => $users
-        ]);
+        // Nếu gọi từ API (Thầy chấm điểm Postman)
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $users
+            ]);
+        }
+
+        // Nếu gọi từ Giao diện Web (Blade)
+        return view('admin.users.index', compact('users'));
     }
 
-    public function show($id)
+    // ── 2. XEM CHI TIẾT 1 NGƯỜI DÙNG ──
+    public function show(Request $request, $id)
     {
-        $user = User::with([
-            'orders' => fn($q) => $q->latest()->limit(10),
-            'orders.items.car',
-        ])->findOrFail($id);
+        $user = User::findOrFail($id);
 
-        // Thống kê tổng chi tiêu
-        $user->total_spent = $user->orders()
-            ->where('status', 'delivered')
-            ->sum('total_amount');
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $user
+            ]);
+        }
 
-        return response()->json([
-            'success' => true,
-            'data'    => $user
-        ]);
+        return view('admin.users.show', compact('user'));
     }
 
+    // ── 3. THÊM NGƯỜI DÙNG MỚI ──
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
+            'role'     => 'required|in:user,admin',
+        ]);
+
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password), // Mã hóa mật khẩu
+            'role'     => $request->role,
+        ]);
+
+        // API
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Thêm người dùng thành công',
+                'data'    => $user
+            ], 201); // 201 Created chuẩn RESTful
+        }
+
+        // Web
+        return redirect()->route('admin.users.index')->with('success', 'Thêm người dùng thành công!');
+    }
+
+    // ── 4. CẬP NHẬT THÔNG TIN NGƯỜI DÙNG ──
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
 
         $request->validate([
-            'name'    => 'sometimes|string|max:255',
-            'email'   => ['sometimes', 'email', Rule::unique('users')->ignore($id)],
-            'role'    => 'sometimes|in:user,admin',
-            'phone'   => 'sometimes|nullable|string|max:20',
-            'address' => 'sometimes|nullable|string|max:500',
+            'name'     => 'sometimes|string|max:255',
+            'email'    => ['sometimes', 'email', Rule::unique('users')->ignore($id)],
+            'role'     => 'sometimes|in:user,admin',
+            'password' => 'nullable|string|min:6',
         ]);
 
-        $user->update($request->only(['name', 'email', 'role', 'phone', 'address']));
+        // Lấy tất cả các trường có thể cập nhật
+        $data = $request->only(['name', 'email', 'role', 'phone', 'address', 'full_name', 'birth']);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cập nhật người dùng thành công',
-            'data'    => $user->fresh()
-        ]);
+        // Chỉ mã hóa nếu có nhập mật khẩu mới
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        // API
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật người dùng thành công',
+                'data'    => $user->fresh()
+            ]);
+        }
+
+        // Web
+        return redirect()->route('admin.users.index')->with('success', 'Cập nhật người dùng thành công!');
     }
 
-    public function destroy($id)
+    // ── 5. XÓA NGƯỜI DÙNG ──
+    public function destroy(Request $request, $id)
     {
         $user = User::findOrFail($id);
 
+        // Chặn tự xóa chính mình
         if ($user->id === auth()->id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không thể xóa tài khoản đang đăng nhập'
-            ], 403);
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Không thể xóa tài khoản đang đăng nhập'], 403);
+            }
+            return redirect()->route('admin.users.index')->with('error', 'Không thể xóa tài khoản đang đăng nhập!');
         }
 
+        // Chặn xóa admin khác
         if ($user->role === 'admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không thể xóa tài khoản admin'
-            ], 403);
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Không thể xóa tài khoản Quản trị viên'], 403);
+            }
+            return redirect()->route('admin.users.index')->with('error', 'Không thể xóa tài khoản Quản trị viên!');
         }
 
         $user->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Xóa người dùng thành công'
-        ]);
+        // API
+        if ($request->is('api/*') || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Xóa người dùng thành công'
+            ]);
+        }
+
+        // Web
+        return redirect()->route('admin.users.index')->with('success', 'Đã xóa người dùng thành công!');
     }
 }
