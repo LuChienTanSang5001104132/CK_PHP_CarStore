@@ -24,6 +24,13 @@ Route::get('/cart', function () { return view('cart'); })->name('cart');
 Route::get('/checkout', function () { return view('checkout'); })->name('checkout');
 Route::get('/profile', function () { return view('profile'); })->name('profile');
 
+// ── CÁC ROUTE MỚI ĐỒNG ĐỘI BẠN VỪA LÀM THÊM ──
+Route::get('/mauxe', function () { return view('typecars.mauxe'); })->name('cars.list');
+Route::get('/ChiTietXe/{id}', function ($id) { return view('typecars.chitietxe', ['id' => $id]); })->name('cars.detail');
+Route::get('/contact', function () { return view('contact'); })->name('contact');
+Route::get('/installment', function () { return view('installment'); })->name('installment');
+Route::get('/warranty-policy', function () { return view('warranty_policy'); })->name('warranty');
+
 // ── Khu vực Quản trị Admin
 Route::prefix('admin')->name('admin.')->group(function () {
     

@@ -20,7 +20,7 @@
 <body class="bg-gray-100">
 
 <div class="flex h-screen">
-    <div class="w-64 bg-gray-900 text-white sidebar overflow-y-auto">
+    <div class="w-64 bg-gray-900 text-white sidebar overflow-y-auto flex flex-col">
         <div class="p-6 border-b border-gray-800">
             <h1 class="text-2xl font-bold flex items-center gap-2">
                 <i class="fas fa-car"></i> CARSTORE
@@ -28,43 +28,50 @@
             <p class="text-gray-400 text-sm">Quản Trị Viên</p>
         </div>
 
-        <nav class="p-4">
+        <nav class="p-4 flex-1">
             <a href="{{ route('admin.dashboard') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.dashboard') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-tachometer-alt w-5"></i>
                 <span>Dashboard</span>
             </a>
             
-            <a href="{{ route('admin.cars.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1">
+            <a href="{{ route('admin.cars.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.cars.*') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-car w-5"></i>
                 <span>Quản lý Xe</span>
             </a>
             
-            <a href="{{ route('admin.users.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1">
+            <a href="{{ route('admin.users.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.users.*') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-users w-5"></i>
                 <span>Quản lý Người dùng</span>
             </a>
             
-            <a href="{{ route('admin.orders.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1">
+            <a href="{{ route('admin.orders.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.orders.*') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-shopping-cart w-5"></i>
                 <span>Quản lý Đơn hàng</span>
             </a>
             
-            <a href="{{ route('admin.comments.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1">
+            <a href="{{ route('admin.comments.index') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.comments.*') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-comments w-5"></i>
                 <span>Quản lý Bình luận</span>
             </a>
 
             <div class="my-6 border-t border-gray-800"></div>
 
-            <a href="{{ route('admin.reports') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1">
+            <a href="{{ route('admin.reports') }}" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg mb-1 {{ request()->routeIs('admin.reports') ? 'bg-blue-700' : '' }}">
                 <i class="fas fa-chart-bar w-5"></i>
                 <span>Báo cáo & Thống kê</span>
             </a>
         </nav>
+        
+        <div class="p-4 border-t border-gray-800">
+            <a href="/" target="_blank" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:text-white">
+                <i class="fas fa-external-link-alt w-5"></i>
+                <span>Xem trang cửa hàng</span>
+            </a>
+        </div>
     </div>
 
     <div class="flex-1 flex flex-col overflow-hidden">
-        <header class="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between">
+        <header class="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="lg:hidden text-gray-600">
                     <i class="fas fa-bars text-xl"></i>
@@ -80,9 +87,20 @@
             </div>
         </header>
 
-        <main class="flex-1 overflow-auto p-6">
+        <main class="flex-1 overflow-auto p-6 bg-gray-100">
             @yield('content')
         </main>
+
+        <footer class="bg-white border-t border-gray-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 shrink-0">
+            <div>
+                &copy; {{ date('Y') }} <strong>CarStore Admin</strong>. Được thực hiện bởi Team Kẹo dừa Vĩnh Long.
+            </div>
+            <div class="flex gap-4 mt-2 md:mt-0">
+                <a href="/" class="hover:text-blue-600 transition"><i class="fas fa-globe"></i> Trang cửa hàng</a>
+                <a href="{{ route('admin.dashboard') }}" class="hover:text-blue-600 transition"><i class="fas fa-chart-pie"></i> Tổng quan</a>
+                <a href="{{ route('admin.reports') }}" class="hover:text-blue-600 transition"><i class="fas fa-file-invoice-dollar"></i> Báo cáo</a>
+            </div>
+        </footer>
     </div>
 </div>
 
@@ -124,7 +142,6 @@
     async function logoutAPI() {
         const token = localStorage.getItem('token');
         if (token) {
-            // Gọi API xóa token trên server
             try {
                 await fetch('/api/logout', {
                     method: 'POST',

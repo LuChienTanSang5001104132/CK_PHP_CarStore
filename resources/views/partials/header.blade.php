@@ -6,8 +6,11 @@
         </a>
 
         <div class="hidden md:flex items-center space-x-8 text-sm font-medium">
-            <a href="/" class="hover:text-blue-600 transition">Trang chủ</a>
-            <a href="/cars" class="hover:text-blue-600 transition">Mẫu xe</a>
+            <a href="/" class="{{ request()->is('/') ? 'text-blue-600 font-bold' : 'hover:text-blue-600 transition' }}">Trang chủ</a>
+            <a href="/mauxe" class="{{ request()->is('mauxe') ? 'text-blue-600 font-bold' : 'hover:text-blue-600 transition' }}">Mẫu xe</a>
+            <a href="/installment" class="{{ request()->is('installment') ? 'text-blue-600 font-bold' : 'hover:text-blue-600 transition' }}">Trả góp & Vay</a>
+            <a href="/warranty-policy" class="{{ request()->is('warranty-policy') ? 'text-blue-600 font-bold' : 'hover:text-blue-600 transition' }}">Bảo hành</a>
+            <a href="/contact" class="{{ request()->is('contact') ? 'text-blue-600 font-bold' : 'hover:text-blue-600 transition' }}">Liên hệ</a>
         </div>
 
         <div class="flex items-center gap-6">
@@ -32,7 +35,6 @@
         const token = localStorage.getItem('token');
 
         if (!token) {
-            // Giao diện khi CHƯA đăng nhập
             authSection.innerHTML = `
                 <div class="flex items-center gap-4">
                     <a href="/login" class="text-sm font-medium text-gray-700 hover:text-blue-600 transition"><i class="fa-solid fa-arrow-right-to-bracket"></i> Đăng nhập</a>
@@ -40,7 +42,6 @@
                 </div>
             `;
         } else {
-            // Giao diện khi ĐÃ đăng nhập (Dropdown Avatar)
             authSection.innerHTML = `
                 <div class="cursor-pointer text-gray-700 hover:text-blue-600 font-medium flex items-center gap-2 text-sm py-2 transition">
                     <img id="header-avatar" src="/images/default-avatar.png" class="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-sm" alt="Avatar">
@@ -69,7 +70,6 @@
                 </div>
             `;
 
-            // Gọi API lấy dữ liệu User
             try {
                 const res = await fetch('/api/profile', {
                     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
@@ -84,11 +84,19 @@
                     if (user.avatar) {
                         document.getElementById('header-avatar').src = '/storage/' + user.avatar;
                     } else {
-                        // Tự động tạo ảnh từ chữ cái đầu nếu chưa có avatar
                         document.getElementById('header-avatar').src = `https://ui-avatars.com/api/?name=${user.name}&background=0D8ABC&color=fff&rounded=true`;
                     }
+
+                    // Tùy chọn: Nếu là Admin, thêm nút vào menu
+                    if (user.role === 'admin') {
+                        const adminLink = document.createElement('a');
+                        adminLink.href = '/admin/dashboard';
+                        adminLink.className = 'block px-4 py-3 text-sm font-medium text-purple-700 hover:bg-purple-50 transition flex items-center gap-3 border-b border-gray-50';
+                        adminLink.innerHTML = '<i class="fa-solid fa-shield-halved text-purple-400 w-4"></i> Trang Quản Trị';
+                        document.getElementById('header-email').parentElement.after(adminLink);
+                    }
                 } else {
-                    clientLogout(); // Token hết hạn thì đăng xuất
+                    clientLogout();
                 }
             } catch (err) {
                 console.error("Lỗi:", err);
