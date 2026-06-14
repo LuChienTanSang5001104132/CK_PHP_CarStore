@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\{AuthController, CartController, CarApiController, ReviewController, OrderController};
 use App\Http\Controllers\Admin\{AdminCarController, AdminUserController, AdminOrderController, AdminCommentController, AdminReportController};
+use App\Http\Controllers\Api\ChatbotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,6 +16,9 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// Route xử lý Chatbot AI (Public)
+Route::post('/chatbot', [ChatbotController::class, 'chat']);
 
 // Public Cars & Reviews
 Route::get('/cars', [CarApiController::class, 'index']);
